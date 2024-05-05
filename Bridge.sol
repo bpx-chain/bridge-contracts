@@ -58,7 +58,7 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- INITIALIZE --------------------
     
-    function _init_Bridge(uint _relayerStake, address[] calldata _trustedRelayers) internal {
+    function _init_Bridge(uint _relayerStake, address[] calldata _trustedRelayers) internal ext {
         relayerStake = _relayerStake;
         
         for(uint i = 0; i < _trustedRelayers.length; i++)
