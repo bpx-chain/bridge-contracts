@@ -58,11 +58,13 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- INITIALIZE --------------------
     
-    function _init_Bridge(uint _relayerStake, address[] calldata _trustedRelayers) internal ext {
+    function _init_Bridge(uint _relayerStake, address[] calldata _trustedRelayers) internal {
         relayerStake = _relayerStake;
         
         for(uint i = 0; i < _trustedRelayers.length; i++)
             trustedRelayers.push(_trustedRelayers[i]);
+        
+        random[0].value = uint256(blockhash(block.number - 1));
     }
     
     // -------------------- UTILS --------------------
