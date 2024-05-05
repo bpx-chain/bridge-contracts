@@ -12,26 +12,21 @@ abstract contract Bridge is Upgradeable {
         TRANSFER
     }
     
+    struct Snapshot {
+        uint64 epoch;
+        uint256 value;
+    }
+    
     struct Relayer {
         bool status;
         uint64 statusEpoch;
         uint balance;
     }
     
-    struct RelayersCountSnapshot {
-        uint64 epoch;
-        uint32 value;
-    }
-    
     struct Chain {
         address[] addresses;
         mapping(address => Relayer) relayers;
-        RelayersCountSnapshot[2] rcs;
-    }
-    
-    struct Random {
-        uint64 epoch;
-        uint256 value;
+        Snapshot[2] rcs;
     }
     
     struct Signature {
@@ -44,8 +39,8 @@ abstract contract Bridge is Upgradeable {
     event MessageProcessed(uint chainId, bytes32 messageHash);
     
     uint private relayerStake;
-    RandomSnapshot[2] private random;
-    mapping(uint => ChainRelayers) private chains; // chainId => Chain
+    Snapshot[2] private random;
+    mapping(uint => Chain) private chains; // chainId => Chain
     uint private nextNonce;
     mapping(bytes32 => bool) private processedMessages; // message hash => processed or not
     address[] private trustedRelayers;
@@ -131,10 +126,10 @@ abstract contract Bridge is Upgradeable {
         chains[chainId].rcs[1] = chains[chainId].rcs[0];
         
         chains[chainId].rcs[0].epoch = epoch;
-        chains[chainId].rcs[0].value = uint32(chains[chainId].addresses.length);
+        chains[chainId].rcs[0].value = chains[chainId].addresses.length;
     }
     
-    function getRelayersCount(uint chainId, uint64 epoch) private view returns(uint32) {
+    function getRelayersCount(uint chainId, uint64 epoch) private view returns(uint256) {
         if(chains[chainId].rcs[0].epoch < epoch)
             return chains[chainId].rcs[0].value;
         
