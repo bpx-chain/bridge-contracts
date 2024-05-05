@@ -63,11 +63,14 @@ abstract contract Bridge is Upgradeable {
         
         for(uint i = 0; i < _trustedRelayers.length; i++)
             trustedRelayers.push(_trustedRelayers[i]);
-            
-        updateRandom();
     }
     
     // -------------------- UTILS --------------------
+    
+    modifier ext {
+        _;
+        updateRandom();
+    }
     
     function getCurrentEpoch() private view returns(uint64) {
         return uint64(block.timestamp) / 60 / 20; // 20 minutes
@@ -301,7 +304,11 @@ abstract contract Bridge is Upgradeable {
         return message;
     }
     
-    function processMessage(bytes calldata message, Signature[8] calldata signatures, uint64 sigEpoch) external payable {
+    function processMessage(
+        bytes calldata message,
+        Signature[8] calldata signatures,
+        uint64 sigEpoch
+    ) external payable ext {
         require(
             msg.value >= tx.gasprice * 21000,
             "Insufficient relayer fee"
@@ -389,7 +396,7 @@ abstract contract Bridge is Upgradeable {
         return relayerStake;
     }
     
-    function relayerActivate(uint chainId) external payable {
+    function relayerActivate(uint chainId) external payable ext {
         checkValidChainId(chainId);
         
         require(
@@ -422,7 +429,7 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- RELAYER DEACTIVATION --------------------
     
-    function relayerDeactivate(uint chainId) external {
+    function relayerDeactivate(uint chainId) external ext {
         checkValidChainId(chainId);
         
         require(
@@ -477,7 +484,7 @@ abstract contract Bridge is Upgradeable {
         return maxAllowedValue;
     }
     
-    function relayerWithdraw(uint chainId, address payable to, uint256 value) external {
+    function relayerWithdraw(uint chainId, address payable to, uint256 value) external ext {
         require(
             value > 0 && value <= relayerGetWithdrawalMax(chainId, msg.sender),
             "Withdrawal value out of allowed range"
@@ -507,7 +514,10 @@ abstract contract Bridge is Upgradeable {
         ));
     }
     
-    function transfer(uint dstChainId, address dstAddress) external payable returns(bytes memory) {
+    function transfer(
+        uint dstChainId,
+        address dstAddress
+    ) external payable ext returns(bytes memory) {
         return transferCommon(address(0), dstChainId, dstAddress, msg.value);
     }
     
@@ -516,7 +526,7 @@ abstract contract Bridge is Upgradeable {
         uint dstChainId,
         address dstAddress,
         uint value
-    ) external returns(bytes memory) {
+    ) external ext returns(bytes memory) {
         bytes memory message = transferCommon(srcContract, dstChainId, dstAddress, value);
         
         if(isERC20Owner(srcContract))
