@@ -18,14 +18,20 @@ abstract contract Bridge is Upgradeable {
         uint balance;
     }
     
-    struct ChainRelayers {
+    struct RelayersCountSnapshot {
+        uint64 epoch;
+        uint32 value;
+    }
+    
+    struct Chain {
         address[] addresses;
         mapping(address => Relayer) relayers;
-        // epoch => relayers count snapshot + 1
-        // +1 to distinguish not set (0) from real 0 value (1)
-        // if 0 use relayersAddr.length
-        // if not use snapshot - 1
-        mapping(uint64 => uint32) countSnapshot;
+        RelayersCountSnapshot[2] rcs;
+    }
+    
+    struct Random {
+        uint64 epoch;
+        uint256 value;
     }
     
     struct Signature {
@@ -38,11 +44,10 @@ abstract contract Bridge is Upgradeable {
     event MessageProcessed(uint chainId, bytes32 messageHash);
     
     uint private relayerStake;
-    // chainId => ChainRelayers
-    mapping(uint => ChainRelayers) private relayers;
+    RandomSnapshot[2] private random;
+    mapping(uint => ChainRelayers) private chains; // chainId => Chain
     uint private nextNonce;
-    // message hash => processed or not
-    mapping(bytes32 => bool) private processedMessages;
+    mapping(bytes32 => bool) private processedMessages; // message hash => processed or not
     address[] private trustedRelayers;
 
     
@@ -58,6 +63,8 @@ abstract contract Bridge is Upgradeable {
         
         for(uint i = 0; i < _trustedRelayers.length; i++)
             trustedRelayers.push(_trustedRelayers[i]);
+            
+        updateRandom();
     }
     
     // -------------------- UTILS --------------------
@@ -87,6 +94,48 @@ abstract contract Bridge is Upgradeable {
         return decoded == address(this);
     }
     
+    // -------------------- TRANSACTION INDEPENDENT RANDOM NUMBER --------------------
+    
+    function updateRandom() private {
+        uint64 epoch = getCurrentEpoch();
+        
+        if(random[0].epoch == epoch)
+            return;
+        
+        random[1] = random[0];
+        
+        random[0].epoch = epoch;
+        random[0].value = uint256(blockhash(block.number - 1));
+    }
+    
+    function getRandom(uint64 epoch) private view returns(uint256) {
+        if(random[0].epoch < epoch)
+            return random[0].value;
+        
+        return random[1].value;
+    }
+    
+    // -------------------- RELAYERS COUNT SNAPSHOT --------------------
+    
+    function updateRelayersCount(uint chainId) private {
+        uint64 epoch = getCurrentEpoch();
+        
+        if(chains[chainId].rcs[0] == epoch)
+            return;
+        
+        chains[chainId].rcs[1] = chains[chainId].rcs[0];
+        
+        chains[chainId].rcs[0].epoch = epoch;
+        chains[chainId].rcs[0].value = uint32(chains[chainId].addresses.length);
+    }
+    
+    function getRelayersCount(uint chainId, uint64 epoch) private view returns(uint32) {
+        if(chains[chainId].rcs[0].epoch < epoch)
+            return chains[chainId].rcs[0].value;
+        
+        return chain[chainId].rcs[1].value;
+    }
+    
     // -------------------- SIGNATURES --------------------
     
     function verifySignature(bytes32 epochHash, Signature calldata signature) private pure returns(address) {
@@ -95,12 +144,22 @@ abstract contract Bridge is Upgradeable {
         return ecrecover(prefixedHash, signature.v, signature.r, signature.s);
     }
     
-    function getRelayersCount(uint chainId, uint64 epoch) private view returns(uint32) {
-        for(uint64 i = epoch; i <= getCurrentEpoch(); i++)
-            if(relayers[chainId].countSnapshot[i] != 0)
-                return relayers[chainId].countSnapshot[i] - 1;
-        return uint32(relayers[chainId].addresses.length);
-    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     function getMessageRelayers(
         uint chainId,
@@ -208,6 +267,24 @@ abstract contract Bridge is Upgradeable {
         return false;
     }
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     // -------------------- MESSAGES --------------------
     
     function createMessage(uint chainId, MessageType messageType, bytes memory body) private returns(bytes memory) {
@@ -296,7 +373,7 @@ abstract contract Bridge is Upgradeable {
         
         uint feePerRelayer = msg.value / 8;
         for(uint8 i = 0; i < 8; i++)
-            relayers[srcChainId].relayers[ selectedRelayers[i] ].balance += feePerRelayer;
+            chains[srcChainId].relayers[ selectedRelayers[i] ].balance += feePerRelayer;
         
         processedMessages[messageHash] = true;
         emit MessageProcessed(srcChainId, messageHash);
@@ -316,33 +393,31 @@ abstract contract Bridge is Upgradeable {
         checkValidChainId(chainId);
         
         require(
-            relayers[chainId].relayers[msg.sender].status == false,
+            chains[chainId].relayers[msg.sender].status == false,
             "Relayer already active"
         );
         
         require(
-            relayers[chainId].relayers[msg.sender].balance + msg.value >= relayerGetStake(msg.sender),
+            chains[chainId].relayers[msg.sender].balance + msg.value >= relayerGetStake(msg.sender),
             "Insufficient stake amount"
         );
         
         uint64 epoch = getCurrentEpoch();
         
         require(
-            relayers[chainId].relayers[msg.sender].statusEpoch <= epoch - 2,
+            chains[chainId].relayers[msg.sender].statusEpoch <= epoch - 2,
             "Not allowed in this epoch"
         );
         
         // statusEpoch = 0 means it never existed before
-        if(relayers[chainId].relayers[msg.sender].statusEpoch == 0) {
-            if(relayers[chainId].countSnapshot[epoch] == 0)
-                relayers[chainId].countSnapshot[epoch] = uint32(relayers[chainId].addresses.length) + 1;
-            
-            relayers[chainId].addresses.push(msg.sender);
+        if(chains[chainId].relayers[msg.sender].statusEpoch == 0) {
+            updateRelayersCount(chainId);
+            chains[chainId].addresses.push(msg.sender);
         }
         
-        relayers[chainId].relayers[msg.sender].status = true;
-        relayers[chainId].relayers[msg.sender].statusEpoch = epoch;
-        relayers[chainId].relayers[msg.sender].balance += msg.value;
+        chain[chainId].relayers[msg.sender].status = true;
+        chains[chainId].relayers[msg.sender].statusEpoch = epoch;
+        chains[chainId].relayers[msg.sender].balance += msg.value;
     }
     
     // -------------------- RELAYER DEACTIVATION --------------------
@@ -351,26 +426,32 @@ abstract contract Bridge is Upgradeable {
         checkValidChainId(chainId);
         
         require(
-            relayers[chainId].relayers[msg.sender].status == true,
+            chains[chainId].relayers[msg.sender].status == true,
             "Relayer already inactive"
         );
         
         uint64 epoch = getCurrentEpoch();
         
         require(
-            relayers[chainId].relayers[msg.sender].statusEpoch <= epoch - 2,
+            chains[chainId].relayers[msg.sender].statusEpoch <= epoch - 2,
             "Not allowed in this epoch"
         );
         
-        relayers[chainId].relayers[msg.sender].status = false;
-        relayers[chainId].relayers[msg.sender].statusEpoch = epoch;
+        chains[chainId].relayers[msg.sender].status = false;
+        chains[chainId].relayers[msg.sender].statusEpoch = epoch;
     }
     
     // -------------------- RELAYER BALANCE --------------------
     
     function relayerGetBalance(uint chainId, address relayerAddr) external view returns(uint) {
         checkValidChainId(chainId);
-        return relayers[chainId].relayers[relayerAddr].balance;
+        return chains[chainId].relayers[relayerAddr].balance;
+    }
+    
+    function relayerGetStatus(uint chainId, address relayerAddr) external view returns(bool, uint64) {
+        checkValidChainId(chainId);
+        return chains[chainId].relayers[relayerAddr].status,
+               chains[chainId].relayers[relayerAddr].statusEpoch;
     }
     
     function relayerGetWithdrawalMax(uint chainId, address relayerAddr) public view returns(uint) {
@@ -384,14 +465,14 @@ abstract contract Bridge is Upgradeable {
         // 1001 (deactivate epoch + 1) - not used in consensus, but signatures are still valid
         // 1002 (current epoch)        - allowed
         if(
-            relayers[chainId].relayers[relayerAddr].status == false
-            && relayers[chainId].relayers[relayerAddr].statusEpoch <= getCurrentEpoch() - 2
+            chains[chainId].relayers[relayerAddr].status == false
+            && chains[chainId].relayers[relayerAddr].statusEpoch <= getCurrentEpoch() - 2
         )
-            maxAllowedValue = relayers[chainId].relayers[relayerAddr].balance;
+            maxAllowedValue = chains[chainId].relayers[relayerAddr].balance;
         
         // Only profit
-        else if(relayers[chainId].relayers[relayerAddr].balance > thisRelayerStake)
-            maxAllowedValue = relayers[chainId].relayers[relayerAddr].balance - thisRelayerStake;
+        else if(chains[chainId].relayers[relayerAddr].balance > thisRelayerStake)
+            maxAllowedValue = chains[chainId].relayers[relayerAddr].balance - thisRelayerStake;
         
         return maxAllowedValue;
     }
@@ -403,7 +484,7 @@ abstract contract Bridge is Upgradeable {
         );
         
         to.transfer(value);
-        relayers[chainId].relayers[msg.sender].balance -= value;
+        chains[chainId].relayers[msg.sender].balance -= value;
     }
     
     // -------------------- TRANSFER: DEPOSIT --------------------
