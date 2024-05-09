@@ -12,7 +12,7 @@ abstract contract Bridge is Upgradeable {
         TRANSFER
     }
     
-    struct Snapshot {
+    struct RelayersCountSnapshot {
         uint64 epoch;
         uint256 value;
     }
@@ -26,7 +26,7 @@ abstract contract Bridge is Upgradeable {
     struct Chain {
         address[] addresses;
         mapping(address => Relayer) relayers;
-        Snapshot[2] rcs;
+        RelayersCountSnapshot[2] rcs;
     }
     
     struct Signature {
@@ -35,11 +35,16 @@ abstract contract Bridge is Upgradeable {
         bytes32 s;
     }
     
+    struct RandomSnapshot {
+        uint64 epoch;
+        bytes32 value;
+    }
+    
     event MessageCreated(uint chainId, bytes32 messageHash);
     event MessageProcessed(uint chainId, bytes32 messageHash);
     
     uint private relayerStake;
-    Snapshot[2] private random;
+    RandomSnapshot[2] private random;
     mapping(uint => Chain) private chains; // chainId => Chain
     uint private nextNonce;
     mapping(bytes32 => bool) private processedMessages; // message hash => processed or not
@@ -59,7 +64,7 @@ abstract contract Bridge is Upgradeable {
         for(uint i = 0; i < _trustedRelayers.length; i++)
             trustedRelayers.push(_trustedRelayers[i]);
         
-        random[0].value = uint256(blockhash(block.number - 1));
+        random[0].value = blockhash(block.number - 1);
     }
     
     // -------------------- UTILS --------------------
@@ -105,10 +110,10 @@ abstract contract Bridge is Upgradeable {
         random[1] = random[0];
         
         random[0].epoch = epoch;
-        random[0].value = uint256(blockhash(block.number - 1));
+        random[0].value = blockhash(block.number - 1);
     }
     
-    function getRandom(uint64 epoch) private view returns(uint256) {
+    function getRandom(uint64 epoch) private view returns(bytes32) {
         if(random[0].epoch < epoch)
             return random[0].value;
         
@@ -120,7 +125,7 @@ abstract contract Bridge is Upgradeable {
     function updateRelayersCount(uint chainId) private {
         uint64 epoch = getCurrentEpoch();
         
-        if(chains[chainId].rcs[0] == epoch)
+        if(chains[chainId].rcs[0].epoch == epoch)
             return;
         
         chains[chainId].rcs[1] = chains[chainId].rcs[0];
@@ -133,7 +138,7 @@ abstract contract Bridge is Upgradeable {
         if(chains[chainId].rcs[0].epoch < epoch)
             return chains[chainId].rcs[0].value;
         
-        return chain[chainId].rcs[1].value;
+        return chains[chainId].rcs[1].value;
     }
     
     // -------------------- SIGNATURES --------------------
@@ -144,51 +149,39 @@ abstract contract Bridge is Upgradeable {
         return ecrecover(prefixedHash, signature.v, signature.r, signature.s);
     }
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     function getMessageRelayers(
         uint chainId,
         uint64 sigEpoch,
         bytes32 epochHash
     ) private view returns(address[8] memory) {
-        uint32 relayersCount = getRelayersCount(chainId, sigEpoch);
+        uint256 relayersCount = getRelayersCount(chainId, sigEpoch);
         require(
             relayersCount >= 8,
             "Not enough relayers"
         );
         
+        bytes32 randomSnapshot = getRandom(sigEpoch);
+        uint256[8] memory spacing;
+        for(uint8 i = 0; i < 8; i++)
+            spacing[i] = uint256(keccak256(abi.encodePacked(randomSnapshot, i)));
+        
+        uint256 displacement = uint256(epochHash);
+        
         address[8] memory selectedRelayers;
         for(uint8 i = 0; i < 8; i++) {
-            // Get initial relayer index
-            uint32 initialIndex = uint32(uint(keccak256(abi.encodePacked(
-                epochHash,
-                i
-            ))));
-            initialIndex = initialIndex * (relayersCount - 1) / 4294967295; // uint32 max
+            uint256 initialIndex;
+            unchecked {
+                initialIndex = (spacing[i] + displacement) % relayersCount;
+            }
             
             // Get alternative relayer if inactive or duplicated
-            uint32 relayerIndex = initialIndex;
+            uint256 relayerIndex = initialIndex;
             while(true) {
-                address relayerAddr = relayers[chainId].addresses[relayerIndex];
+                address relayerAddr = chains[chainId].addresses[relayerIndex];
                 
                 if(
-                    relayers[chainId].relayers[relayerAddr].status == true
-                    && relayers[chainId].relayers[relayerAddr].statusEpoch < sigEpoch
+                    chains[chainId].relayers[relayerAddr].status == true
+                    && chains[chainId].relayers[relayerAddr].statusEpoch < sigEpoch
                 ) {
                     bool isDuplicate = false;
                     
@@ -266,24 +259,6 @@ abstract contract Bridge is Upgradeable {
                 return true;
         return false;
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     // -------------------- MESSAGES --------------------
     
@@ -419,7 +394,7 @@ abstract contract Bridge is Upgradeable {
             chains[chainId].addresses.push(msg.sender);
         }
         
-        chain[chainId].relayers[msg.sender].status = true;
+        chains[chainId].relayers[msg.sender].status = true;
         chains[chainId].relayers[msg.sender].statusEpoch = epoch;
         chains[chainId].relayers[msg.sender].balance += msg.value;
     }
@@ -454,8 +429,10 @@ abstract contract Bridge is Upgradeable {
     
     function relayerGetStatus(uint chainId, address relayerAddr) external view returns(bool, uint64) {
         checkValidChainId(chainId);
-        return chains[chainId].relayers[relayerAddr].status,
-               chains[chainId].relayers[relayerAddr].statusEpoch;
+        return (
+            chains[chainId].relayers[relayerAddr].status,
+            chains[chainId].relayers[relayerAddr].statusEpoch
+        );
     }
     
     function relayerGetWithdrawalMax(uint chainId, address relayerAddr) public view returns(uint) {
