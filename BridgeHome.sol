@@ -25,7 +25,7 @@ contract BridgeHome is Bridge {
         return assetsDb[chainId].valid;
     }
     
-    function _resolveAsset(uint chainId, address contractLocal) internal view override returns(address) {
+    function _assetResolve(uint chainId, address contractLocal) internal view override returns(address) {
         require(
             assetsDb[chainId].assets[contractLocal].valid,
             "Asset not found"
@@ -33,16 +33,16 @@ contract BridgeHome is Bridge {
         return assetsDb[chainId].assets[contractLocal].contractRemote;
     }
     
-    function updateChain(uint chainId, bool valid) external onlyOwner {
+    function chainUpdate(uint chainId, bool valid) external onlyOwner {
         assetsDb[chainId].valid = valid;
     }
     
-    function addAsset(uint chainId, address contractLocal, address contractRemote) external onlyOwner {
+    function assetAdd(uint chainId, address contractLocal, address contractRemote) external onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = true;
         assetsDb[chainId].assets[contractLocal].contractRemote = contractRemote;
     }
     
-    function removeAsset(uint chainId, address contractLocal) external onlyOwner {
+    function assetRemove(uint chainId, address contractLocal) external onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = false;
     }
 }

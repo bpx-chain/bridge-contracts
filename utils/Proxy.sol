@@ -8,14 +8,11 @@ contract Proxy is Ownable {
     address implementation;
     
     constructor(address _implementation) {
-        require(_implementation != address(0));
-        
         _init_Ownable(msg.sender);
         implementation = _implementation;
     }
     
     function setImplementation(address _implementation) external onlyOwner {
-        require(_implementation != address(0));
         implementation = _implementation;
     }
     

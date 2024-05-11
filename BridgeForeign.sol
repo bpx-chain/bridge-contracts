@@ -16,7 +16,7 @@ contract BridgeForeign is Bridge {
         return chainId == homeChainId;
     }
     
-    function _resolveAsset(uint, address contractLocal) internal pure override returns(address) {
+    function _assetResolve(uint, address contractLocal) internal pure override returns(address) {
         return contractLocal;
     }
 }
