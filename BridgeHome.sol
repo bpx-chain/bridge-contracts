@@ -17,7 +17,7 @@ contract BridgeHome is Bridge {
     
     mapping(uint => DbChain) assetsDb;
     
-    function initialize(uint _relayerStake, address[] calldata _trustedRelayers) external onlyOwner initVer(1) {
+    function initialize(uint _relayerStake, address[] calldata _trustedRelayers) external initVer(1) onlyOwner {
         _init_Bridge(_relayerStake, _trustedRelayers);
     }
     
@@ -33,16 +33,16 @@ contract BridgeHome is Bridge {
         return assetsDb[chainId].assets[contractLocal].contractRemote;
     }
     
-    function chainUpdate(uint chainId, bool valid) external onlyOwner {
+    function chainUpdate(uint chainId, bool valid) external requireVer(1) onlyOwner {
         assetsDb[chainId].valid = valid;
     }
     
-    function assetAdd(uint chainId, address contractLocal, address contractRemote) external onlyOwner {
+    function assetAdd(uint chainId, address contractLocal, address contractRemote) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = true;
         assetsDb[chainId].assets[contractLocal].contractRemote = contractRemote;
     }
     
-    function assetRemove(uint chainId, address contractLocal) external onlyOwner {
+    function assetRemove(uint chainId, address contractLocal) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = false;
     }
 }

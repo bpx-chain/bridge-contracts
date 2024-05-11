@@ -7,7 +7,7 @@ import "./Bridge.sol";
 contract BridgeForeign is Bridge {
     uint private homeChainId;
     
-    function initialize(uint _relayerStake, address[] calldata _trustedRelayers, uint _homeChainId) external onlyOwner initVer(1) {
+    function initialize(uint _relayerStake, address[] calldata _trustedRelayers, uint _homeChainId) external initVer(1) onlyOwner {
         _init_Bridge(_relayerStake, _trustedRelayers);
         homeChainId = _homeChainId;
     }

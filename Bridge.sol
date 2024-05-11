@@ -40,7 +40,7 @@ abstract contract Bridge is Upgradeable {
         bytes32 value;
     }
     
-    event MessageCreated(uint chainId, bytes32 messageHash);
+    event MessageCreated(uint chainId, bytes message);
     event MessageProcessed(uint chainId, bytes32 messageHash);
     
     uint private relayerStake;
@@ -85,7 +85,7 @@ abstract contract Bridge is Upgradeable {
         );
     }
     
-    function assetResolve(uint chainId, address contractLocal) public view returns(address) {
+    function assetResolve(uint chainId, address contractLocal) public view requireVer(1) returns(address) {
         checkValidChainId(chainId);
         return _assetResolve(chainId, contractLocal);
     }
@@ -245,7 +245,7 @@ abstract contract Bridge is Upgradeable {
         return selectedRelayers;
     }
     
-    function relayerCheckMessage(uint chainId, bytes32 messageHash) public view returns(bool) {
+    function relayerCheckMessage(uint chainId, bytes32 messageHash) external view requireVer(1) returns(bool) {
         uint64 epoch = getCurrentEpoch();
         
         bytes32 epochHash = keccak256(abi.encodePacked(
@@ -262,7 +262,7 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- MESSAGES --------------------
     
-    function createMessage(uint chainId, MessageType messageType, bytes memory body) private returns(bytes memory) {
+    function createMessage(uint chainId, MessageType messageType, bytes memory body) private {
         bytes memory message = bytes.concat(
             abi.encode(
                 block.chainid,
@@ -272,15 +272,14 @@ abstract contract Bridge is Upgradeable {
             ),
             body
         );
-        emit MessageCreated(chainId, keccak256(message));
-        return message;
+        emit MessageCreated(chainId, message);
     }
     
     function processMessage(
         bytes calldata message,
         Signature[8] calldata signatures,
         uint64 sigEpoch
-    ) external payable ext {
+    ) external payable requireVer(1) ext {
         require(
             msg.value >= tx.gasprice * 21000,
             "Insufficient relayer fee"
@@ -360,7 +359,7 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- RELAYER ACTIVATION --------------------
     
-    function relayerGetStake(address relayerAddr) public view returns(uint) {
+    function relayerGetStake(address relayerAddr) public view requireVer(1) returns(uint) {
         for(uint8 i = 0; i < trustedRelayers.length; i++)
             if(trustedRelayers[i] == relayerAddr)
                 return 0;
@@ -368,7 +367,7 @@ abstract contract Bridge is Upgradeable {
         return relayerStake;
     }
     
-    function relayerActivate(uint chainId) external payable ext {
+    function relayerActivate(uint chainId) external payable requireVer(1) ext {
         checkValidChainId(chainId);
         
         require(
@@ -401,7 +400,7 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- RELAYER DEACTIVATION --------------------
     
-    function relayerDeactivate(uint chainId) external ext {
+    function relayerDeactivate(uint chainId) external requireVer(1) ext {
         checkValidChainId(chainId);
         
         require(
@@ -422,12 +421,12 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- RELAYER BALANCE --------------------
     
-    function relayerGetBalance(uint chainId, address relayerAddr) external view returns(uint) {
+    function relayerGetBalance(uint chainId, address relayerAddr) external view requireVer(1) returns(uint) {
         checkValidChainId(chainId);
         return chains[chainId].relayers[relayerAddr].balance;
     }
     
-    function relayerGetStatus(uint chainId, address relayerAddr) external view returns(bool, uint64) {
+    function relayerGetStatus(uint chainId, address relayerAddr) external view requireVer(1) returns(bool, uint64) {
         checkValidChainId(chainId);
         return (
             chains[chainId].relayers[relayerAddr].status,
@@ -435,7 +434,7 @@ abstract contract Bridge is Upgradeable {
         );
     }
     
-    function relayerGetWithdrawalMax(uint chainId, address relayerAddr) public view returns(uint) {
+    function relayerGetWithdrawalMax(uint chainId, address relayerAddr) public view requireVer(1) returns(uint) {
         checkValidChainId(chainId);
         
         uint maxAllowedValue = 0;
@@ -458,7 +457,7 @@ abstract contract Bridge is Upgradeable {
         return maxAllowedValue;
     }
     
-    function relayerWithdraw(uint chainId, address payable to, uint256 value) external ext {
+    function relayerWithdraw(uint chainId, address payable to, uint256 value) external requireVer(1) ext {
         require(
             value > 0 && value <= relayerGetWithdrawalMax(chainId, msg.sender),
             "Withdrawal value out of allowed range"
@@ -481,7 +480,7 @@ abstract contract Bridge is Upgradeable {
             "Transfer value is 0"
         );
         
-        return createMessage(dstChainId, MessageType.TRANSFER, abi.encode(
+        createMessage(dstChainId, MessageType.TRANSFER, abi.encode(
             assetResolve(dstChainId, srcContract),
             dstAddress,
             value
@@ -491,8 +490,8 @@ abstract contract Bridge is Upgradeable {
     function transfer(
         uint dstChainId,
         address dstAddress
-    ) external payable ext returns(bytes memory) {
-        return transferCommon(address(0), dstChainId, dstAddress, msg.value);
+    ) external payable requireVer(1) ext {
+        transferCommon(address(0), dstChainId, dstAddress, msg.value);
     }
     
     function transferERC20(
@@ -500,8 +499,8 @@ abstract contract Bridge is Upgradeable {
         uint dstChainId,
         address dstAddress,
         uint value
-    ) external ext returns(bytes memory) {
-        bytes memory message = transferCommon(srcContract, dstChainId, dstAddress, value);
+    ) external ext requireVer(1) {
+        transferCommon(srcContract, dstChainId, dstAddress, value);
         
         if(isERC20Owner(srcContract))
             IERC20Burnable(srcContract).burnFrom(msg.sender, value);
@@ -510,8 +509,6 @@ abstract contract Bridge is Upgradeable {
                 IERC20(srcContract).transferFrom(msg.sender, address(this), value),
                 "ERC20 transfer failed"
             );
-        
-        return message;
     }
     
     // -------------------- TRANSFER: WITHDRAWAL --------------------
