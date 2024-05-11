@@ -40,7 +40,7 @@ abstract contract Bridge is Upgradeable {
         bytes32 value;
     }
     
-    event MessageCreated(uint chainId, bytes message);
+    event MessageCreated(uint chainId, address from, bytes message);
     event MessageProcessed(uint chainId, bytes32 messageHash);
     
     uint private relayerStake;
@@ -272,7 +272,7 @@ abstract contract Bridge is Upgradeable {
             ),
             body
         );
-        emit MessageCreated(chainId, message);
+        emit MessageCreated(chainId, msg.sender, message);
     }
     
     function processMessage(
