@@ -474,7 +474,7 @@ abstract contract Bridge is Upgradeable {
         uint dstChainId,
         address dstAddress,
         uint value
-    ) private returns(bytes memory) {
+    ) private {
         require(
             value != 0,
             "Transfer value is 0"
