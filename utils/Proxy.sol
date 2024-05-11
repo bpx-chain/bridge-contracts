@@ -8,28 +8,26 @@ contract Proxy is Ownable {
     address implementation;
     
     constructor(address _implementation) {
+        require(_implementation != address(0));
+        
         _init_Ownable(msg.sender);
         implementation = _implementation;
     }
     
     function setImplementation(address _implementation) external onlyOwner {
+        require(_implementation != address(0));
         implementation = _implementation;
     }
     
     fallback() external payable {
-        address target = implementation;
-        require(target != address(0));
-        
         assembly {
-            let ptr := mload(0x40)
-            calldatacopy(ptr, 0, calldatasize())
-            let result := delegatecall(gas(), target, ptr, calldatasize(), 0, 0)
-            let size := returndatasize()
-            returndatacopy(ptr, 0, size)
-      
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), sload(implementation.slot), 0, calldatasize(), 0, 0)
+            
+            returndatacopy(0, 0, returndatasize())
             switch result
-            case 0 { revert(ptr, size) }
-            default { return(ptr, size) }
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
         }
     }
 }
