@@ -149,7 +149,7 @@ abstract contract Bridge is Upgradeable {
         return ecrecover(prefixedHash, signature.v, signature.r, signature.s);
     }
     
-    function getMessageRelayers(
+    function getRelayersForEpochHash(
         uint chainId,
         uint64 sigEpoch,
         bytes32 epochHash
@@ -234,7 +234,7 @@ abstract contract Bridge is Upgradeable {
             messageHash,
             sigEpoch
         ));
-        address[8] memory selectedRelayers = getMessageRelayers(chainId, sigEpoch, epochHash);
+        address[8] memory selectedRelayers = getRelayersForEpochHash(chainId, sigEpoch, epochHash);
         
         for(uint8 i = 0; i < 8; i++)
             require(
@@ -252,7 +252,7 @@ abstract contract Bridge is Upgradeable {
             messageHash,
             epoch
         ));
-        address[8] memory selectedRelayers = getMessageRelayers(chainId, epoch, epochHash);
+        address[8] memory selectedRelayers = getRelayersForEpochHash(chainId, epoch, epochHash);
         
         for(uint8 i = 0; i < 8; i++)
             if(selectedRelayers[i] == msg.sender)
