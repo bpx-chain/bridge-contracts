@@ -149,11 +149,18 @@ abstract contract Bridge is Upgradeable {
         return ecrecover(prefixedHash, signature.v, signature.r, signature.s);
     }
     
-    function getMessageRelayers(
+    function messageGetRelayers(
         uint chainId,
         uint64 sigEpoch,
         bytes32 epochHash
-    ) private view returns(address[8] memory) {
+    ) public view returns(address[8] memory) {
+        uint64 currentEpoch = getCurrentEpoch();
+        
+        require(
+            sigEpoch == currentEpoch || sigEpoch == currentEpoch - 1,
+            "Epoch not allowed"
+        );
+        
         uint256 relayersCount = getRelayersCount(chainId, sigEpoch);
         require(
             relayersCount >= 8,
@@ -223,18 +230,11 @@ abstract contract Bridge is Upgradeable {
         Signature[8] calldata signatures,
         uint64 sigEpoch
     ) private view returns(address[8] memory) {
-        uint64 currentEpoch = getCurrentEpoch();
-        
-        require(
-            sigEpoch == currentEpoch || sigEpoch == currentEpoch - 1,
-            "Expired signatures"
-        );
-        
         bytes32 epochHash = keccak256(abi.encodePacked(
             messageHash,
             sigEpoch
         ));
-        address[8] memory selectedRelayers = getMessageRelayers(chainId, sigEpoch, epochHash);
+        address[8] memory selectedRelayers = messageGetRelayers(chainId, sigEpoch, epochHash);
         
         for(uint8 i = 0; i < 8; i++)
             require(
@@ -243,21 +243,6 @@ abstract contract Bridge is Upgradeable {
             );
         
         return selectedRelayers;
-    }
-    
-    function relayerCheckMessage(uint chainId, bytes32 messageHash) external view requireVer(1) returns(bool) {
-        uint64 epoch = getCurrentEpoch();
-        
-        bytes32 epochHash = keccak256(abi.encodePacked(
-            messageHash,
-            epoch
-        ));
-        address[8] memory selectedRelayers = getMessageRelayers(chainId, epoch, epochHash);
-        
-        for(uint8 i = 0; i < 8; i++)
-            if(selectedRelayers[i] == msg.sender)
-                return true;
-        return false;
     }
     
     // -------------------- MESSAGES --------------------
@@ -275,7 +260,7 @@ abstract contract Bridge is Upgradeable {
         emit MessageCreated(chainId, msg.sender, message);
     }
     
-    function processMessage(
+    function messageProcess(
         bytes calldata message,
         Signature[8] calldata signatures,
         uint64 sigEpoch
