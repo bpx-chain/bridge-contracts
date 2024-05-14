@@ -222,6 +222,8 @@ abstract contract Bridge is Upgradeable {
         bytes32 messageHash,
         uint64 epoch
     ) external view requireVer(1) returns(address[8] memory) {
+        checkValidChainId(chainId);
+        
         uint64 currentEpoch = getCurrentEpoch();
         
         require(
@@ -242,6 +244,8 @@ abstract contract Bridge is Upgradeable {
         Signature[8] calldata signatures,
         uint64 sigEpoch
     ) public view requireVer(1) returns(address[8] memory) {
+        checkValidChainId(chainId);
+        
         uint64 currentEpoch = getCurrentEpoch();
         
         require(
