@@ -217,12 +217,31 @@ abstract contract Bridge is Upgradeable {
         return selectedRelayers;
     }
     
-    function checkSignatures(
+    function messageGetRelayers(
+        uint chainId,
+        bytes32 messageHash,
+        uint64 epoch
+    ) external view requireVer(1) returns(address[8] memory) {
+        uint64 currentEpoch = getCurrentEpoch();
+        
+        require(
+            epoch == currentEpoch || epoch == currentEpoch - 1,
+            "Epoch out of allowed range"
+        );
+        
+        bytes32 epochHash = keccak256(abi.encodePacked(
+            messageHash,
+            epoch
+        ));
+        return getRelayersForEpochHash(chainId, epoch, epochHash);
+    }
+    
+    function messageCheckSignatures(
         uint chainId,
         bytes32 messageHash,
         Signature[8] calldata signatures,
         uint64 sigEpoch
-    ) private view returns(address[8] memory) {
+    ) public view requireVer(1) returns(address[8] memory) {
         uint64 currentEpoch = getCurrentEpoch();
         
         require(
@@ -243,21 +262,6 @@ abstract contract Bridge is Upgradeable {
             );
         
         return selectedRelayers;
-    }
-    
-    function relayerCheckMessage(uint chainId, bytes32 messageHash) external view requireVer(1) returns(bool) {
-        uint64 epoch = getCurrentEpoch();
-        
-        bytes32 epochHash = keccak256(abi.encodePacked(
-            messageHash,
-            epoch
-        ));
-        address[8] memory selectedRelayers = getRelayersForEpochHash(chainId, epoch, epochHash);
-        
-        for(uint8 i = 0; i < 8; i++)
-            if(selectedRelayers[i] == msg.sender)
-                return true;
-        return false;
     }
     
     // -------------------- MESSAGES --------------------
@@ -324,7 +328,7 @@ abstract contract Bridge is Upgradeable {
             "Message already processed"
         );
         
-        address[8] memory selectedRelayers = checkSignatures(srcChainId, messageHash, signatures, sigEpoch);
+        address[8] memory selectedRelayers = messageCheckSignatures(srcChainId, messageHash, signatures, sigEpoch);
         
         if(messageType == MessageType.TRANSFER) {
             (
