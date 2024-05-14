@@ -275,7 +275,7 @@ abstract contract Bridge is Upgradeable {
         emit MessageCreated(chainId, msg.sender, message);
     }
     
-    function processMessage(
+    function messageProcess(
         bytes calldata message,
         Signature[8] calldata signatures,
         uint64 sigEpoch
