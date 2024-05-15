@@ -40,8 +40,8 @@ abstract contract Bridge is Upgradeable {
         bytes32 value;
     }
     
-    event MessageCreated(uint chainId, address from, bytes message);
-    event MessageProcessed(uint chainId, bytes32 messageHash);
+    event MessageCreated(uint indexed chainId, address indexed from, bytes message);
+    event MessageProcessed(uint indexed chainId, bytes32 messageHash);
     
     uint private relayerStake;
     RandomSnapshot[2] private random;

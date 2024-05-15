@@ -15,7 +15,7 @@ contract BridgeHome is Bridge {
         address contractRemote;
     }
     
-    mapping(uint => DbChain) assetsDb;
+    mapping(uint => DbChain) private assetsDb;
     
     function initialize(uint _relayerStake, address[] calldata _trustedRelayers) external initVer(1) onlyOwner {
         _init_Bridge(_relayerStake, _trustedRelayers);
