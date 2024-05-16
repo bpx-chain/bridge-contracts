@@ -12,7 +12,7 @@ contract BridgeHome is Bridge {
     
     struct DbAsset {
         bool valid;
-        address contract;
+        address contractAddr;
     }
     
     mapping(uint => DbChain) private assetsDb;
@@ -31,7 +31,7 @@ contract BridgeHome is Bridge {
             assetsDb[chainId].assets[contractLocal].valid,
             "Asset not found"
         );
-        return assetsDb[chainId].assets[contractLocal].contract;
+        return assetsDb[chainId].assets[contractLocal].contractAddr;
     }
     
     function _assetResolveRev(uint chainId, address contractRemote) internal view override returns(address) {
@@ -39,7 +39,7 @@ contract BridgeHome is Bridge {
             revDb[chainId][contractRemote].valid,
             "Asset not found"
         );
-        return revDb[chainId][contractRemote].contract;
+        return revDb[chainId][contractRemote].contractAddr;
     }
     
     function chainUpdate(uint chainId, bool valid) external requireVer(1) onlyOwner {
@@ -48,15 +48,15 @@ contract BridgeHome is Bridge {
     
     function assetAdd(uint chainId, address contractLocal, address contractRemote) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = true;
-        assetsDb[chainId].assets[contractLocal].contract = contractRemote;
+        assetsDb[chainId].assets[contractLocal].contractAddr = contractRemote;
         revDb[chainId][contractRemote].valid = true;
-        revDb[chainId][contractRemote].contract = contractLocal;
+        revDb[chainId][contractRemote].contractAddr = contractLocal;
     }
     
     function assetRemove(uint chainId, address contractLocal) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = false;
         revDb[chainId][
-            assetsDb[chainId].assets[contractLocal].contract
+            assetsDb[chainId].assets[contractLocal].contractAddr
         ].valid = false;
     }
 }
