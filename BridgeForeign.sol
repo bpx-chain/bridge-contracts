@@ -19,4 +19,8 @@ contract BridgeForeign is Bridge {
     function _assetResolve(uint, address contractLocal) internal pure override returns(address) {
         return contractLocal;
     }
+    
+    function _assetResolveRev(uint chainId, address contractRemote) internal view override returns(address) {
+        return contractRemote;
+    }
 }

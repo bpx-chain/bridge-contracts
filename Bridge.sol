@@ -55,6 +55,7 @@ abstract contract Bridge is Upgradeable {
     
     function isValidChainId(uint chainId) internal view virtual returns(bool);
     function _assetResolve(uint chainId, address contractLocal) internal view virtual returns(address);
+    function _assetResolveRev(uint chainId, address contractRemote) internal view virtual returns(address);
     
     // -------------------- INITIALIZE --------------------
     
@@ -88,6 +89,11 @@ abstract contract Bridge is Upgradeable {
     function assetResolve(uint chainId, address contractLocal) public view requireVer(1) returns(address) {
         checkValidChainId(chainId);
         return _assetResolve(chainId, contractLocal);
+    }
+    
+    function assetResolveRev(uint chainId, address contractRemote) public view requireVer(1) returns(address) {
+        checkValidChainId(chainId);
+        return _assetResolveRev(chainId, contractRemote);
     }
     
     function isERC20Owner(address tokenContract) private view returns(bool) {
@@ -527,7 +533,7 @@ abstract contract Bridge is Upgradeable {
         address dstAddress,
         uint value
     ) private {
-        address dstContract = assetResolve(srcChainId, srcDstContract);
+        address dstContract = assetResolveRev(srcChainId, srcDstContract);
         
         if(dstContract == address(0))
             payable(dstAddress).transfer(value);

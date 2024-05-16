@@ -12,10 +12,11 @@ contract BridgeHome is Bridge {
     
     struct DbAsset {
         bool valid;
-        address contractRemote;
+        address contract;
     }
     
     mapping(uint => DbChain) private assetsDb;
+    mapping(uint => mapping(address => DbAsset)) private revDb;
     
     function initialize(uint _relayerStake, address[] calldata _trustedRelayers) external initVer(1) onlyOwner {
         _init_Bridge(_relayerStake, _trustedRelayers);
@@ -30,7 +31,15 @@ contract BridgeHome is Bridge {
             assetsDb[chainId].assets[contractLocal].valid,
             "Asset not found"
         );
-        return assetsDb[chainId].assets[contractLocal].contractRemote;
+        return assetsDb[chainId].assets[contractLocal].contract;
+    }
+    
+    function _assetResolveRev(uint chainId, address contractRemote) internal view override returns(address) {
+        require(
+            revDb[chainId][contractRemote].valid,
+            "Asset not found"
+        );
+        return revDb[chainId][contractRemote].contract;
     }
     
     function chainUpdate(uint chainId, bool valid) external requireVer(1) onlyOwner {
@@ -39,10 +48,15 @@ contract BridgeHome is Bridge {
     
     function assetAdd(uint chainId, address contractLocal, address contractRemote) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = true;
-        assetsDb[chainId].assets[contractLocal].contractRemote = contractRemote;
+        assetsDb[chainId].assets[contractLocal].contract = contractRemote;
+        revDb[chainId][contractRemote].valid = true;
+        revDb[chainId][contractRemote].contract = contractLocal;
     }
     
     function assetRemove(uint chainId, address contractLocal) external requireVer(1) onlyOwner {
         assetsDb[chainId].assets[contractLocal].valid = false;
+        revDb[chainId][
+            assetsDb[chainId].assets[contractLocal].contract
+        ].valid = false;
     }
 }
