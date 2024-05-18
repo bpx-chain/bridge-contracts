@@ -65,14 +65,14 @@ abstract contract Bridge is Upgradeable {
         for(uint i = 0; i < _trustedRelayers.length; i++)
             trustedRelayers.push(_trustedRelayers[i]);
         
-        random[0].value = blockhash(block.number - 1);
+        updateRandom(true);
     }
     
     // -------------------- UTILS --------------------
     
     modifier ext {
         _;
-        updateRandom();
+        updateRandom(false);
     }
     
     function getCurrentEpoch() private view returns(uint64) {
@@ -107,14 +107,16 @@ abstract contract Bridge is Upgradeable {
     
     // -------------------- TRANSACTION INDEPENDENT RANDOM NUMBER --------------------
     
-    function updateRandom() private {
-        uint64 epoch = getCurrentEpoch();
-        
-        if(random[0].epoch != epoch) {
-            random[1] = random[0];
-        
-            random[0].epoch = epoch;
-            random[0].value = newRandom;
+    function updateRandom(bool init) private {
+        if(!init) {
+            uint64 epoch = getCurrentEpoch();
+            
+            if(random[0].epoch != epoch) {
+                random[1] = random[0];
+            
+                random[0].epoch = epoch;
+                random[0].value = newRandom;
+            }
         }
         
         newRandom = keccak256(abi.encodePacked(
