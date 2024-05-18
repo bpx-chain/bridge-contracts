@@ -46,7 +46,7 @@ abstract contract Bridge is Upgradeable {
     uint private relayerStake;
     RandomSnapshot[2] private random;
     mapping(uint => Chain) private chains; // chainId => Chain
-    uint private nextNonce;
+    bytes32 private newRandom;
     mapping(bytes32 => bool) private processedMessages; // message hash => processed or not
     address[] private trustedRelayers;
 
@@ -110,20 +110,28 @@ abstract contract Bridge is Upgradeable {
     function updateRandom() private {
         uint64 epoch = getCurrentEpoch();
         
-        if(random[0].epoch == epoch)
-            return;
+        if(random[0].epoch != epoch) {
+            random[1] = random[0];
         
-        random[1] = random[0];
+            random[0].epoch = epoch;
+            random[0].value = newRandom;
+        }
         
-        random[0].epoch = epoch;
-        random[0].value = blockhash(block.number - 1);
+        newRandom = keccak256(abi.encodePacked(
+            newRandom,
+            blockhash(block.number - 1)
+        ));
     }
     
     function getRandom(uint64 epoch) private view returns(bytes32) {
-        if(random[0].epoch < epoch)
-            return random[0].value;
+        if(epoch > random[0].epoch)
+            return newRandom;
         
-        return random[1].value;
+        if(epoch == random[1].epoch)
+            return random[1].value
+        
+        // epoch == random[0].epoch || epoch > random[1].epoch
+        return random[0].value;
     }
     
     // -------------------- RELAYERS COUNT SNAPSHOT --------------------
@@ -141,10 +149,14 @@ abstract contract Bridge is Upgradeable {
     }
     
     function getRelayersCount(uint chainId, uint64 epoch) private view returns(uint256) {
-        if(chains[chainId].rcs[0].epoch < epoch)
-            return chains[chainId].rcs[0].value;
+        if(epoch > chains[chainId].rcs[0].epoch)
+            return chains[chainId].addresses.length;
         
-        return chains[chainId].rcs[1].value;
+        if(epoch == chains[chainId].rcs[1].epoch)
+            return chains[chainId].rcs[1].value;
+        
+        // epoch == rcs[0].epoch || epoch > rcs[1].epoch
+        return chains[chainId].rcs[0].value;
     }
     
     // -------------------- SIGNATURES --------------------
@@ -281,7 +293,7 @@ abstract contract Bridge is Upgradeable {
             abi.encode(
                 block.chainid,
                 chainId,
-                nextNonce++,
+                newRandom,
                 messageType
             ),
             body
