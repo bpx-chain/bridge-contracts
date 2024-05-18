@@ -128,7 +128,7 @@ abstract contract Bridge is Upgradeable {
             return newRandom;
         
         if(epoch == random[1].epoch)
-            return random[1].value
+            return random[1].value;
         
         // epoch == random[0].epoch || epoch > random[1].epoch
         return random[0].value;
